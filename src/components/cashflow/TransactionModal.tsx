@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { format } from 'date-fns';
+import { TransactionSchema, validateData } from '@/lib/validation';
+import { AlertCircle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -37,6 +39,8 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
         date: new Date()
     });
 
+    const [errors, setErrors] = useState<string[]>([]);
+
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
@@ -47,13 +51,27 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
                 category: 'Food',
                 date: new Date()
             });
+            setErrors([]);
         }
     }, [isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!formData.title || !formData.amount) return;
+        // Validate Data
+        const validationResult = validateData(TransactionSchema, {
+            title: formData.title,
+            amount: parseFloat(formData.amount),
+            type: formData.type,
+            category: formData.category,
+            date: formData.date.toISOString(),
+            currency
+        });
+
+        if (!validationResult.success) {
+            setErrors((validationResult as any).errors);
+            return;
+        }
 
         await addTransaction({
             title: formData.title,
@@ -76,6 +94,16 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+                    {errors.length > 0 && (
+                        <div className="bg-destructive/15 text-destructive p-3 rounded-md flex items-start gap-2 text-sm">
+                            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                            <ul className="list-disc pl-4 space-y-1">
+                                {errors.map((err, i) => (
+                                    <li key={i}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     {/* Type Toggle */}
                     <div className="space-y-2">
                         <Label>Type</Label>

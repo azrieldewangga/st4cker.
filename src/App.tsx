@@ -36,6 +36,7 @@ function App() {
 import { useTheme } from "@/components/theme-provider";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useState } from 'react';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 const StandaloneRoutes = () => {
   const { initApp, isAppReady } = useStore();
@@ -104,27 +105,29 @@ const StandaloneRoutes = () => {
         onRedo={() => useStore.getState().redo()}
       />
 
-      <HashRouter>
-        <Routes>
-          {/* Standalone Window Routes - MUST BE FIRST */}
-          <Route path="/history" element={<TransactionHistoryModal />} />
+      <ErrorBoundary>
+        <HashRouter>
+          <Routes>
+            {/* Standalone Window Routes - MUST BE FIRST */}
+            <Route path="/history" element={<TransactionHistoryModal />} />
 
 
-          {/* Main App Routes - Catch all others */}
-          <Route path="/*" element={
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/assignments" element={<Assignments />} />
-                <Route path="/performance" element={<Performance />} />
-                <Route path="/schedule" element={<Schedule />} />
-                <Route path="/cashflow" element={<Cashflow />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </MainLayout>
-          } />
-        </Routes>
-      </HashRouter>
+            {/* Main App Routes - Catch all others */}
+            <Route path="/*" element={
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/assignments" element={<Assignments />} />
+                  <Route path="/performance" element={<Performance />} />
+                  <Route path="/schedule" element={<Schedule />} />
+                  <Route path="/cashflow" element={<Cashflow />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </MainLayout>
+            } />
+          </Routes>
+        </HashRouter>
+      </ErrorBoundary >
     </>
   )
 }
