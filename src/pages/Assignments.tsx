@@ -62,6 +62,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import AssignmentModal from '../components/assignments/AssignmentModal';
+import { SkeletonTable } from '../components/shared/Skeleton';
+import { EmptyState } from '../components/shared/EmptyState';
 
 // --- Sortable Row Component ---
 interface SortableRowProps {
@@ -390,7 +392,17 @@ const Assignments = () => {
     };
 
     if (!userProfile) {
-        return <div className="p-8 text-center text-muted-foreground">Loading assignments...</div>;
+        return (
+            <div className="h-full flex flex-col space-y-8 p-8 pt-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight">Assignments</h2>
+                        <p className="text-muted-foreground">Manage your tasks and deadlines.</p>
+                    </div>
+                </div>
+                <SkeletonTable rows={8} />
+            </div>
+        );
     }
 
     return (
@@ -478,8 +490,14 @@ const Assignments = () => {
                             >
                                 {filteredAssignments.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
-                                            No assignments found.
+                                        <TableCell colSpan={7}>
+                                            <EmptyState
+                                                icon={Plus}
+                                                title="No assignments yet"
+                                                description={isFiltered ? "No assignments match your filters. Try adjusting your search criteria." : "Get started by creating your first assignment. Click the button above to add one."}
+                                                actionLabel={!isFiltered ? "New Assignment" : undefined}
+                                                onAction={!isFiltered ? () => { setEditingId(null); setIsModalOpen(true); } : undefined}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ) : (
