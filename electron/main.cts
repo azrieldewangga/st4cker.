@@ -81,6 +81,7 @@ const createWindow = () => {
         backgroundMaterial: 'none', // EXPLICITLY DISABLE to prevent gray box in prod
         backgroundColor: '#00000000', // Start fully transparent
         show: false, // Don't show immediately
+        icon: path.join(__dirname, app.isPackaged ? '../dist/icon.ico' : '../public/icon.ico'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.cjs'),
             nodeIntegration: false,

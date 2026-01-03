@@ -76,6 +76,7 @@ const createWindow = () => {
         backgroundMaterial: 'none', // EXPLICITLY DISABLE to prevent gray box in prod
         backgroundColor: '#00000000', // Start fully transparent
         show: false, // Don't show immediately
+        icon: path_1.default.join(__dirname, electron_1.app.isPackaged ? '../dist/icon.ico' : '../public/icon.ico'),
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.cjs'),
             nodeIntegration: false,
