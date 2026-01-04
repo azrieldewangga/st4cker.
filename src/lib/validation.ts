@@ -6,8 +6,8 @@ export const TransactionSchema = z.object({
         .min(1, 'Title is required')
         .max(100, 'Title must be less than 100 characters'),
     amount: z.number()
-        .positive('Amount must be positive')
-        .max(999999999, 'Amount is too large')
+        .refine(val => val !== 0, 'Amount cannot be zero')
+        .refine(val => Math.abs(val) <= 999999999, 'Amount is too large')
         .refine(val => Number.isFinite(val), 'Amount must be a valid number')
         .refine(val => Number((val * 100).toFixed(0)) / 100 === val, 'Amount can have at most 2 decimal places'),
     type: z.enum(['income', 'expense']),

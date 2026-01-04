@@ -95,18 +95,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }, [autoTheme, themeSchedule, theme]);
 
     // Window actions
-    const handleMinimize = () => window.electronAPI.minimize();
-    const handleMaximize = () => window.electronAPI.maximize();
+    const handleMinimize = () => window.electronAPI?.minimize?.();
+    const handleMaximize = () => window.electronAPI?.maximize?.();
     const handleClose = () => {
         // Close search or window
         if (isSearchOpen) setSearchOpen(false);
-        else window.electronAPI.close();
+        else window.electronAPI?.close?.();
     };
 
     // Child Window Blur Effect
     const [isChildWindowOpen, setIsChildWindowOpen] = React.useState(false);
 
     React.useEffect(() => {
+        // Only set up listeners if running in Electron
+        if (!window.electronAPI) {
+            console.log('[MainLayout] Not running in Electron, skipping child window listeners');
+            return;
+        }
+
+        if (!window.electronAPI.on) {
+            console.log('[MainLayout] Electron API does not support event listeners');
+            return;
+        }
+
         // @ts-ignore
         const handleOpen = () => {
             console.log('[MainLayout] Received child-window-opened');

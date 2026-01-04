@@ -710,6 +710,14 @@ export const useStore = create<AppState>((set, get) => ({
         try {
             const payload = { ...data, currency: get().currency };
 
+            // Check if running in Electron environment
+            if (!window.electronAPI || !window.electronAPI.transactions) {
+                console.warn('[Store] Electron API not available. Transaction not saved (browser mode).');
+                // Still call fetchTransactions to trigger UI update even in browser mode
+                get().fetchTransactions();
+                return;
+            }
+
             // Generate ID manually if needed or let DB handle? DB handles, but we need it for undo.
             // Better to let DB handle, but for Undo we need the full object.
             // Let's generate ID here to be safe for undo consistency?

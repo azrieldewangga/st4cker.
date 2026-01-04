@@ -41,6 +41,9 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
 
     const [errors, setErrors] = useState<string[]>([]);
 
+    // Check if form is valid
+    const isFormValid = formData.title.trim() !== '' && formData.amount !== '' && parseFloat(formData.amount) > 0;
+
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
@@ -200,7 +203,11 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
 
                     {/* Submit Button */}
                     <div className="pt-4">
-                        <Button type="submit" className="w-full">
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={!isFormValid}
+                        >
                             Add Transaction
                         </Button>
                     </div>
