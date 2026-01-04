@@ -110,4 +110,3 @@ This project is developed for personal and educational use.
 ---
 
 **Built with ❤️ for students, by students.**
-**Made by Azriel Dewangga**
