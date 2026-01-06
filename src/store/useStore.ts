@@ -13,6 +13,7 @@ import {
 } from '../lib/validation';
 import curriculumDataJson from '../lib/curriculum.json';
 import { EXCHANGE_RATES, ANALYTICS_CONFIG, isDev } from '@/lib/constants';
+import { isSameMonth } from 'date-fns';
 
 const curriculumData = curriculumDataJson as Record<string, { sks: number; name: string; id?: string }[]>;
 
@@ -1069,3 +1070,35 @@ export const useStore = create<AppState>((set, get) => ({
     },
     hideNotification: () => set({ notification: null }),
 }));
+
+export const selectTotalBalance = (state: AppState) => {
+    return state.transactions.reduce((acc, tx) => {
+        const amount = Number(tx.amount);
+        if (amount < 0) return acc + amount;
+        return acc + (tx.type === 'income' ? amount : -amount);
+    }, 0);
+};
+
+export const selectCompletionRate = (state: AppState) => {
+    const total = state.assignments.length;
+    if (total === 0) return 0;
+    const done = state.assignments.filter(a => a.status === 'done').length;
+    return (done / total) * 100;
+};
+
+export const selectMonthlyStats = (state: AppState) => {
+    const now = new Date();
+    return state.transactions.reduce((acc, tx) => {
+        if (isSameMonth(new Date(tx.date), now)) {
+            const amount = Number(tx.amount);
+            if (amount < 0) {
+                acc.expense += Math.abs(amount);
+            } else if (tx.type === 'income') {
+                acc.income += amount;
+            } else {
+                acc.expense += amount;
+            }
+        }
+        return acc;
+    }, { income: 0, expense: 0 });
+};
