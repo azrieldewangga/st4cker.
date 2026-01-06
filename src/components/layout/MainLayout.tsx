@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'; // Assuming cn is available
 import { TipBanner } from '@/components/ui/tip-banner';
 import { GlobalSearchDialog } from '@/components/shared/GlobalSearchDialog';
 import { useTheme } from '@/components/theme-provider';
+import { isDev } from '@/lib/constants';
 
 import { useNotifications } from '@/hooks/useNotifications';
 
@@ -109,23 +110,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     React.useEffect(() => {
         // Only set up listeners if running in Electron
         if (!window.electronAPI) {
-            console.log('[MainLayout] Not running in Electron, skipping child window listeners');
+            if (isDev) console.log('[MainLayout] Not running in Electron, skipping child window listeners');
             return;
         }
 
         if (!window.electronAPI.on) {
-            console.log('[MainLayout] Electron API does not support event listeners');
+            if (isDev) console.log('[MainLayout] Electron API does not support event listeners');
             return;
         }
 
         // @ts-ignore
         const handleOpen = () => {
-            console.log('[MainLayout] Received child-window-opened');
+            if (isDev) console.log('[MainLayout] Received child-window-opened');
             setIsChildWindowOpen(true);
         };
         // @ts-ignore
         const handleClose = () => {
-            console.log('[MainLayout] Received child-window-closed');
+            if (isDev) console.log('[MainLayout] Received child-window-closed');
             setIsChildWindowOpen(false);
         };
 

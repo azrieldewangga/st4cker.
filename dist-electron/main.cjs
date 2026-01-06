@@ -148,7 +148,7 @@ electron_1.app.on('ready', async () => {
         // 3. Verify Content (Temporary Debug)
         splashWindow?.webContents.send('splash-progress', { message: 'Verifying data...', percent: 70 });
         const db = (0, index_cjs_1.getDB)();
-        const dbPath = process.env.VITE_DEV_SERVER_URL ? path_1.default.join(process.cwd(), 'campusdash.db') : path_1.default.join(electron_1.app.getPath('userData'), 'campusdash.db');
+        const dbPath = process.env.VITE_DEV_SERVER_URL ? path_1.default.join(process.cwd(), 'st4cker.db') : path_1.default.join(electron_1.app.getPath('userData'), 'st4cker.db');
         console.log('--------------------------------------------------');
         console.log('[DEBUG-CRITICAL] DB PATH DETECTED:', dbPath);
         const meta = db.prepare('SELECT * FROM meta').all();
@@ -226,7 +226,7 @@ electron_1.app.on('ready', async () => {
         const { dialog } = require('electron');
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-        const defaultFilename = `CampusDash-Backup-${dateStr}.db`;
+        const defaultFilename = `st4cker-Backup-${dateStr}.db`;
         const result = await dialog.showSaveDialog({
             title: 'Backup Database',
             defaultPath: defaultFilename,

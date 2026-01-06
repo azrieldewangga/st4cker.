@@ -8,6 +8,7 @@ import { format, isSameMonth, isSameDay, startOfWeek, endOfWeek, eachDayOfInterv
 import { cn } from "@/lib/utils";
 import { exportToCSV } from '../utils/export';
 import { toast } from "sonner";
+import { EXCHANGE_RATES } from '@/lib/constants';
 
 // Shadcn Components
 import { Button } from "@/components/ui/button";
@@ -33,10 +34,10 @@ import { useTheme } from "@/components/theme-provider";
 import { SkeletonCard } from '../components/shared/Skeleton';
 import { EmptyState } from '../components/shared/EmptyState';
 
-const RATE = 16000;
+const RATE = EXCHANGE_RATES.FALLBACK_IDR_TO_USD;
 
 const Cashflow = () => {
-    const { transactions, fetchTransactions, currency, setCurrency } = useStore();
+    const { transactions, fetchTransactions, currency, setCurrency, exchangeRate } = useStore();
     const { theme } = useTheme();
     const [period, setPeriod] = useState<'Weekly' | 'Monthly' | 'Yearly'>('Yearly');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,7 +78,7 @@ const Cashflow = () => {
         if (currency === 'IDR') {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amountIDR);
         } else {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountIDR / RATE);
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountIDR / exchangeRate);
         }
     };
 
@@ -281,10 +282,10 @@ const Cashflow = () => {
                     <p className="text-muted-foreground">Monitor financial health and subscriptions.</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <Button onClick={handleExport} variant="outline" size="icon" title="Export to CSV">
+                    <Button onClick={handleExport} variant="outline" size="icon" title="Export to CSV" aria-label="Export to CSV">
                         <Download className="h-4 w-4" />
                     </Button>
-                    <Button onClick={() => setCurrency(currency === 'IDR' ? 'USD' : 'IDR')} variant="outline">
+                    <Button onClick={() => setCurrency(currency === 'IDR' ? 'USD' : 'IDR')} variant="outline" aria-label={`Switch currency to ${currency === 'IDR' ? 'USD' : 'IDR'}`}>
                         {currency} Mode
                     </Button>
                 </div>

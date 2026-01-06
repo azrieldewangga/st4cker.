@@ -1,27 +1,43 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { app } from 'electron';
 import { initSchema } from './schema.cjs';
+// @ts-ignore
+import log from 'electron-log/main.js';
 
 let db: Database.Database | null = null;
 
 export const getDB = () => {
     if (!db) {
-        let dbPath;
+        const userDataPath = app.getPath('userData');
+        let dbPath: string;
+
         if (process.env.VITE_DEV_SERVER_URL) {
-            // In Dev, store DB in project root
-            dbPath = path.join(process.cwd(), 'campusdash.db');
+            // Dev mode: store DB in project root
+            dbPath = path.join(process.cwd(), 'st4cker.db');
             console.log('[DB] Dev Mode: Using CWD database:', dbPath);
         } else {
-            const userDataPath = app.getPath('userData');
-            dbPath = path.join(userDataPath, 'campusdash.db');
+            // Production mode: store DB in userData with migration logic
+            dbPath = path.join(userDataPath, 'st4cker.db');
+
+            // Migration: Rename old database if exists
+            const oldDbPath = path.join(userDataPath, 'campusdash.db');
+            if (fs.existsSync(oldDbPath) && !fs.existsSync(dbPath)) {
+                log.info('[DB] Migrating database: campusdash.db → st4cker.db');
+                try {
+                    fs.renameSync(oldDbPath, dbPath);
+                    log.info('[DB] Migration complete');
+                } catch (error) {
+                    log.error('[DB] Migration failed:', error);
+                    // Fallback to old path if migration fails
+                    dbPath = oldDbPath;
+                }
+            }
         }
 
         // Debug Log
         try {
-            const fs = require('fs');
-            // Assuming running in dev where ./debug_info.txt maps to project root or similar. 
-            // We'll try to append.
             fs.appendFileSync('debug_info.txt', `[DB] Connecting to: ${dbPath}\n`);
         } catch { }
 

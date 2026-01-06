@@ -307,13 +307,16 @@ export const driveService = {
             const drive = google.drive({ version: 'v3', auth: client });
 
             // Database path consistency - always use userData
-            const dbPath = path.join(app.getPath('userData'), 'campusdash.db');
+            // NOTE: Database file renamed to st4cker.db as part of v1.6.0 rebranding
+            const dbPath = path.join(app.getPath('userData'), 'st4cker.db');
 
             if (!fs.existsSync(dbPath)) {
                 throw new Error('Database file not found at: ' + dbPath);
             }
 
             // st4cker branding
+            // NOTE: Google Cloud project_id remains "campusdash-backup" in credentials
+            // to avoid requiring all users to re-authenticate with new OAuth credentials
             const folderId = await driveService.getOrCreateFolder(drive, 'st4cker Backups');
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

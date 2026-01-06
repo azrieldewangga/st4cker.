@@ -367,9 +367,20 @@ const TransactionHistoryModal = () => {
                                 <Label htmlFor="amount">Amount (IDR)</Label>
                                 <Input
                                     id="amount"
-                                    type="number"
-                                    value={editingTransaction.amount}
-                                    onChange={(e) => setEditingTransaction({ ...editingTransaction, amount: Number(e.target.value) })}
+                                    type="text"
+                                    value={
+                                        typeof editingTransaction.amount === 'number'
+                                            ? editingTransaction.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })
+                                            : '0'
+                                    }
+                                    onChange={(e) => {
+                                        const input = e.target.value;
+                                        // Remove all non-digit characters except decimal point
+                                        const numericValue = input.replace(/[^\d.]/g, '');
+                                        // Parse to number
+                                        const num = parseFloat(numericValue);
+                                        setEditingTransaction({ ...editingTransaction, amount: isNaN(num) ? 0 : num });
+                                    }}
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">

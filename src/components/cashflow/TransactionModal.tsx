@@ -42,7 +42,7 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
     const [errors, setErrors] = useState<string[]>([]);
 
     // Check if form is valid
-    const isFormValid = formData.title.trim() !== '' && formData.amount !== '' && parseFloat(formData.amount) > 0;
+    const isFormValid = formData.title.trim() !== '' && formData.amount !== '' && parseFloat(formData.amount.replace(/,/g, '')) > 0;
 
     // Reset form when modal opens
     useEffect(() => {
@@ -64,7 +64,7 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
         // Validate Data
         const validationResult = validateData(TransactionSchema, {
             title: formData.title,
-            amount: parseFloat(formData.amount),
+            amount: parseFloat(formData.amount.replace(/,/g, '')),
             type: formData.type,
             category: formData.category,
             date: formData.date.toISOString(),
@@ -79,7 +79,7 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
         try {
             await addTransaction({
                 title: formData.title,
-                amount: parseFloat(formData.amount) * (formData.type === 'expense' ? -1 : 1),
+                amount: parseFloat(formData.amount.replace(/,/g, '')) * (formData.type === 'expense' ? -1 : 1),
                 type: formData.type,
                 category: formData.category,
                 date: formData.date.toISOString() // Fix: Use ISO string for Zod validation
@@ -174,11 +174,29 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
                                 </span>
                                 <Input
                                     id="amount"
-                                    type="number"
+                                    type="text"
                                     placeholder="0"
                                     className="pl-10"
                                     value={formData.amount}
-                                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                    onChange={(e) => {
+                                        const input = e.target.value;
+                                        // Remove all non-digit characters except decimal point
+                                        const numericValue = input.replace(/[^\d.]/g, '');
+                                        // Format with thousand separators
+                                        const parts = numericValue.split('.');
+                                        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                        const formatted = parts.join('.');
+                                        setFormData({ ...formData, amount: formatted });
+                                    }}
+                                    onBlur={(e) => {
+                                        // Clean up on blur - ensure valid number format
+                                        const cleaned = e.target.value.replace(/,/g, '');
+                                        if (cleaned && !isNaN(parseFloat(cleaned))) {
+                                            const num = parseFloat(cleaned);
+                                            const formatted = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+                                            setFormData({ ...formData, amount: formatted });
+                                        }
+                                    }}
                                     required
                                 />
                             </div>

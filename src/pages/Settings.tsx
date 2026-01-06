@@ -152,10 +152,10 @@ const GoogleDriveCard = () => {
                                 <Clock size={14} />
                                 <span>Weekly Auto-backup</span>
                             </div>
-                            <Button size="icon" onClick={handleBackupNow} disabled={loading} title="Backup Now">
+                            <Button size="icon" onClick={handleBackupNow} disabled={loading} title="Backup Now" aria-label="Backup Now">
                                 {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                             </Button>
-                            <Button variant="destructive" size="icon" onClick={() => setDisconnectModalOpen(true)} disabled={loading} title="Disconnect">
+                            <Button variant="destructive" size="icon" onClick={() => setDisconnectModalOpen(true)} disabled={loading} title="Disconnect" aria-label="Disconnect Google Drive">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
@@ -342,7 +342,7 @@ const Settings = () => {
                                 <div className="flex-1 space-y-1 text-center md:text-left">
                                     <h4 className="font-semibold">{formData.name || 'User'}</h4>
                                     <p className="text-sm text-muted-foreground">Click the image to upload a new photo. Max size 2MB.</p>
-                                    <Button variant="ghost" size="sm" onClick={handleInitialChange} className="mt-2">
+                                    <Button variant="ghost" size="sm" onClick={handleInitialChange} className="mt-2" aria-label="Reset avatar to initials">
                                         <RotateCcw className="mr-2 h-3 w-3" /> Reset to Initials
                                     </Button>
                                 </div>
@@ -421,6 +421,7 @@ const Settings = () => {
                                 <Switch
                                     checked={autoTheme}
                                     onCheckedChange={setAutoTheme}
+                                    aria-label="Toggle auto-switch theme"
                                 />
                             </div>
 
@@ -493,7 +494,7 @@ const Settings = () => {
                                     <Label className="text-base">Run at Startup</Label>
                                     <p className="text-sm text-muted-foreground">Automatically launch st4cker when you log in</p>
                                 </div>
-                                <Switch checked={runAtStartup} onCheckedChange={toggleStartup} />
+                                <Switch checked={runAtStartup} onCheckedChange={toggleStartup} aria-label="Toggle run at startup" />
                             </div>
 
                             <div className="flex items-center justify-between rounded-lg border p-4">
@@ -501,7 +502,7 @@ const Settings = () => {
                                     <Label className="text-base">Show Tips</Label>
                                     <p className="text-sm text-muted-foreground">Display helpful tips and keyboard shortcuts</p>
                                 </div>
-                                <Switch checked={showTips} onCheckedChange={toggleTips} />
+                                <Switch checked={showTips} onCheckedChange={toggleTips} aria-label="Toggle tips" />
                             </div>
 
                             <div className="flex items-center justify-between rounded-lg border p-4">
@@ -509,7 +510,7 @@ const Settings = () => {
                                     <Label className="text-base">Desktop Notifications</Label>
                                     <p className="text-sm text-muted-foreground">Receive alerts for deadlines and due dates</p>
                                 </div>
-                                <Switch checked={notificationsEnabled} onCheckedChange={toggleNotifications} />
+                                <Switch checked={notificationsEnabled} onCheckedChange={toggleNotifications} aria-label="Toggle desktop notifications" />
                             </div>
 
 

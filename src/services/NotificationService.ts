@@ -1,7 +1,23 @@
 import { Assignment, Subscription } from "@/types/models";
 import { isSameDay, addDays, isPast, differenceInDays } from "date-fns";
+import { STORAGE_KEYS, isDev } from "@/lib/constants";
 
-const NOTIFICATION_KEY = "campusdash-notifications-last-checked";
+const NOTIFICATION_KEY = STORAGE_KEYS.NOTIFICATIONS_LAST_CHECKED;
+
+/**
+ * Migrate old localStorage key from v1.5.x 
+ * This preserves the user's last notification check timestamp
+ */
+const migrateOldNotificationKey = () => {
+    const oldKey = "campusdash-notifications-last-checked";
+    const oldValue = localStorage.getItem(oldKey);
+
+    // Only migrate if old value exists and new key doesn't
+    if (oldValue && !localStorage.getItem(NOTIFICATION_KEY)) {
+        localStorage.setItem(NOTIFICATION_KEY, oldValue);
+        localStorage.removeItem(oldKey);
+    }
+};
 
 export const NotificationService = {
     async checkDeadlineNotifications(
@@ -10,6 +26,9 @@ export const NotificationService = {
     ) {
         if (!window.electronAPI?.notifications) return;
 
+        // Run migration before first check
+        migrateOldNotificationKey();
+
         const lastChecked = localStorage.getItem(NOTIFICATION_KEY);
         const now = new Date();
         const todayStr = now.toDateString();
@@ -17,17 +36,17 @@ export const NotificationService = {
         // Check user preference
         const isEnabled = localStorage.getItem('notifications-enabled') !== 'false';
         if (!isEnabled) {
-            console.log("Notifications are disabled by user.");
+            if (isDev) console.log("Notifications are disabled by user.");
             return;
         }
 
         // Only check once per day to avoid spam
         if (lastChecked === todayStr) {
-            console.log("Notifications already checked today.");
+            if (isDev) console.log("Notifications already checked today.");
             return;
         }
 
-        console.log("Checking notifications...");
+        if (isDev) console.log("Checking notifications...");
 
         // 1. Check Assignments
         const todoAssignments = assignments.filter(a => a.status !== 'done');

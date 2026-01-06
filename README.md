@@ -39,7 +39,7 @@ Designed to help students manage assignments, schedules, grades, and personal fi
 1. Clone or download the repository:
    ```bash
    git clone <repository-url>
-   cd CampusDash
+   cd st4cker
    ```
 
 2. Install dependencies:
@@ -79,7 +79,7 @@ The compiled installer will be available in the `dist/` directory.
 ## 💾 Data Storage
 
 User data is stored locally in an SQLite database file:
-- **Location**: `%APPDATA%/st4cker/campusdash.db` (Windows)
+- **Location**: `%APPDATA%/st4cker/st4cker.db` (Windows)
 - **Automatic backups**: Created on major updates
 - **No internet required**: Full offline functionality
 

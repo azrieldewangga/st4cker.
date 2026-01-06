@@ -142,9 +142,9 @@ export default function Onboarding() {
                         {/* Window Controls */}
                         <div className="no-drag flex items-center">
                             <div className="flex gap-2 ml-4">
-                                <button onClick={handleMinimize} className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 border border-yellow-600/30 transition-colors" />
-                                <button onClick={handleMaximize} className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 border border-green-600/30 transition-colors" />
-                                <button onClick={handleClose} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 border border-red-600/30 transition-colors" />
+                                <button onClick={handleMinimize} aria-label="Minimize" className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 border border-yellow-600/30 transition-colors" />
+                                <button onClick={handleMaximize} aria-label="Maximize" className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 border border-green-600/30 transition-colors" />
+                                <button onClick={handleClose} aria-label="Close" className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 border border-red-600/30 transition-colors" />
                             </div>
                         </div>
                     </div>

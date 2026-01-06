@@ -508,7 +508,7 @@ const Schedule = () => {
                             ))}
                             {filteredCourses.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">No courses found</p>}
                         </div>
-                        <Button variant="destructive" className="w-full" onClick={() => handleSelectCourse('')}>Clear Slot</Button>
+                        <Button variant="destructive" className="w-full" onClick={() => handleSelectCourse('')} aria-label="Clear selected slot">Clear Slot</Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -593,8 +593,8 @@ const Schedule = () => {
                             <div className="space-y-2 pt-4 border-t">
                                 <Label>Add Material</Label>
                                 <div className="flex gap-2">
-                                    <Button variant="secondary" size="sm" onClick={() => setIsAddingLink(!isAddingLink)}><LinkIcon className="w-3 h-3 mr-2" /> Add Link</Button>
-                                    <Button variant="secondary" size="sm" onClick={() => handleAddMaterial('file')}><FileText className="w-3 h-3 mr-2" /> Add File</Button>
+                                    <Button variant="secondary" size="sm" onClick={() => setIsAddingLink(!isAddingLink)} aria-label="Add Link"><LinkIcon className="w-3 h-3 mr-2" /> Add Link</Button>
+                                    <Button variant="secondary" size="sm" onClick={() => handleAddMaterial('file')} aria-label="Add File"><FileText className="w-3 h-3 mr-2" /> Add File</Button>
                                 </div>
                                 {isAddingLink && (
                                     <div className="p-3 bg-muted rounded-md space-y-2 animate-in slide-in-from-top-2">

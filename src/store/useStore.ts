@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Assignment, Course, UserProfile, Transaction, CourseMaterial, Subscription } from '../types/models';
 import { NotificationService } from '../services/NotificationService';
+import { getUSDRate, refreshExchangeRate } from '../services/exchangeRate';
 import {
     validateData,
     AssignmentSchema,
@@ -11,6 +12,7 @@ import {
     CourseMaterialSchema
 } from '../lib/validation';
 import curriculumDataJson from '../lib/curriculum.json';
+import { EXCHANGE_RATES, ANALYTICS_CONFIG, isDev } from '@/lib/constants';
 
 const curriculumData = curriculumDataJson as Record<string, { sks: number; name: string; id?: string }[]>;
 
@@ -76,6 +78,10 @@ interface AppState {
 
     currency: 'IDR' | 'USD';
     setCurrency: (currency: 'IDR' | 'USD') => void;
+
+    exchangeRate: number;
+    fetchExchangeRate: () => Promise<void>;
+    refreshExchangeRate: () => Promise<void>;
 
     theme: string;
 
@@ -240,6 +246,27 @@ export const useStore = create<AppState>((set, get) => ({
     currency: 'IDR',
     setCurrency: (currency) => set({ currency }),
 
+    exchangeRate: EXCHANGE_RATES.FALLBACK_IDR_TO_USD, // Default fallback
+    fetchExchangeRate: async () => {
+        try {
+            const rate = await getUSDRate();
+            set({ exchangeRate: rate });
+            if (isDev) console.log('[Store] Exchange rate updated:', rate);
+        } catch (error) {
+            console.error('[Store] Failed to fetch exchange rate:', error);
+            // Keep fallback value
+        }
+    },
+    refreshExchangeRate: async () => {
+        try {
+            const rate = await refreshExchangeRate();
+            set({ exchangeRate: rate });
+            if (isDev) console.log('[Store] Exchange rate refreshed:', rate);
+        } catch (error) {
+            console.error('[Store] Failed to refresh exchange rate:', error);
+        }
+    },
+
     // Theme State - migrate old themes to new ones
     // Theme State
     theme: localStorage.getItem('theme') || 'system',
@@ -265,7 +292,7 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     // Monthly Limit
-    monthlyLimit: parseInt(localStorage.getItem('monthlyLimit') || '5000000'),
+    monthlyLimit: parseInt(localStorage.getItem('monthlyLimit') || String(ANALYTICS_CONFIG.DEFAULT_MONTHLY_LIMIT)),
     setMonthlyLimit: (limit: number) => {
         localStorage.setItem('monthlyLimit', limit.toString());
         set({ monthlyLimit: limit });
@@ -274,7 +301,10 @@ export const useStore = create<AppState>((set, get) => ({
     initApp: async (skipDelay = false) => {
         set({ isAppReady: false });
         // Use 'get()' inside the async function to simplify
-        const { fetchUserProfile, fetchTransactions, fetchAssignments, fetchSubscriptions, checkSubscriptionDeductions, seedDatabase } = get();
+        const { fetchUserProfile, fetchTransactions, fetchAssignments, fetchSubscriptions, checkSubscriptionDeductions, seedDatabase, fetchExchangeRate } = get();
+
+        // Fetch exchange rate early (non-blocking)
+        fetchExchangeRate().catch(err => console.error('Exchange rate fetch error:', err));
 
         // 1. Ensure DB is seeded from JSON (Migration)
         await seedDatabase();
@@ -304,10 +334,10 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     fetchUserProfile: async () => {
-        console.log('[useStore] Fetching user profile...');
+        if (isDev) console.log('[useStore] Fetching user profile...');
         try {
             const profile = await window.electronAPI.userProfile.get();
-            console.log('[useStore] User Profile fetched:', profile);
+            if (isDev) console.log('[useStore] User Profile fetched:', profile);
             if (profile) {
                 set({ userProfile: profile });
                 get().fetchCourses();
@@ -315,7 +345,7 @@ export const useStore = create<AppState>((set, get) => ({
                 // No profile found = Fresh Install
                 // Leave userProfile as null. The specific routing gate (App.tsx) or Onboarding logic
                 // will handle the redirection.
-                console.log('[useStore] No profile returned. Waiting for Onboarding.');
+                if (isDev) console.log('[useStore] No profile returned. Waiting for Onboarding.');
                 set({ userProfile: null });
                 // Don't fetch courses yet if we don't know the semester
             }
@@ -832,7 +862,7 @@ export const useStore = create<AppState>((set, get) => ({
 
         if (promises.length > 0) {
             await Promise.all(promises);
-            console.log(`[Seeder] Seeded ${promises.length} courses.`);
+            if (isDev) console.log(`[Seeder] Seeded ${promises.length} courses.`);
             // Refresh
             get().fetchGrades();
         }
@@ -852,7 +882,7 @@ export const useStore = create<AppState>((set, get) => ({
                     const needsSksFix = dbRecord.sks !== c.sks;
 
                     if (needsNameFix || needsSksFix) {
-                        console.log(`[Course-Sync] Fixing ${id}: name=${needsNameFix ? dbRecord.name + ' -> ' + c.name : 'OK'}, sks=${needsSksFix ? dbRecord.sks + ' -> ' + c.sks : 'OK'}`);
+                        if (isDev) console.log(`[Course-Sync] Fixing ${id}: name=${needsNameFix ? dbRecord.name + ' -> ' + c.name : 'OK'}, sks=${needsSksFix ? dbRecord.sks + ' -> ' + c.sks : 'OK'}`);
                         syncPromises.push(window.electronAPI.performance.upsertCourse({
                             ...dbRecord,
                             name: c.name,
@@ -866,7 +896,7 @@ export const useStore = create<AppState>((set, get) => ({
 
         if (syncPromises.length > 0) {
             await Promise.all(syncPromises);
-            console.log(`[Course-Sync] Fixed ${syncPromises.length} courses.`);
+            if (isDev) console.log(`[Course-Sync] Fixed ${syncPromises.length} courses.`);
             // Refresh records for grade seeding
             currentRecords = await window.electronAPI.performance.getCourses();
             set({ performanceRecords: currentRecords });
@@ -1009,7 +1039,7 @@ export const useStore = create<AppState>((set, get) => ({
         try {
             const res = await window.electronAPI.subscriptions.checkDeductions();
             if (res.deductionsMade > 0) {
-                console.log(`[Store] Auto-deducted ${res.deductionsMade} subscriptions.`);
+                if (isDev) console.log(`[Store] Auto-deducted ${res.deductionsMade} subscriptions.`);
                 get().fetchTransactions(); // Refresh transactions if any were made
                 get().fetchSubscriptions(); // Refresh subs (lastPaidDate changed)
 

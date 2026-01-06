@@ -113,7 +113,7 @@ export const TipBanner: React.FC = () => {
                 </div>
                 <button
                     onClick={handleDismiss}
-                    className="absolute top-2 right-2 p-1 hover:bg-muted rounded-md transition-colors"
+                    className="absolute right-2 top-2 p-1 text-white/70 hover:text-white rounded-full hover:bg-white/10 transition-colors"
                     aria-label="Dismiss tips"
                 >
                     <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />

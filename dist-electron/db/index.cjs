@@ -6,27 +6,42 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.closeDB = exports.getDB = void 0;
 const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const electron_1 = require("electron");
 const schema_cjs_1 = require("./schema.cjs");
+// @ts-ignore
+const main_js_1 = __importDefault(require("electron-log/main.js"));
 let db = null;
 const getDB = () => {
     if (!db) {
+        const userDataPath = electron_1.app.getPath('userData');
         let dbPath;
         if (process.env.VITE_DEV_SERVER_URL) {
-            // In Dev, store DB in project root
-            dbPath = path_1.default.join(process.cwd(), 'campusdash.db');
+            // Dev mode: store DB in project root
+            dbPath = path_1.default.join(process.cwd(), 'st4cker.db');
             console.log('[DB] Dev Mode: Using CWD database:', dbPath);
         }
         else {
-            const userDataPath = electron_1.app.getPath('userData');
-            dbPath = path_1.default.join(userDataPath, 'campusdash.db');
+            // Production mode: store DB in userData with migration logic
+            dbPath = path_1.default.join(userDataPath, 'st4cker.db');
+            // Migration: Rename old database if exists
+            const oldDbPath = path_1.default.join(userDataPath, 'campusdash.db');
+            if (fs_1.default.existsSync(oldDbPath) && !fs_1.default.existsSync(dbPath)) {
+                main_js_1.default.info('[DB] Migrating database: campusdash.db → st4cker.db');
+                try {
+                    fs_1.default.renameSync(oldDbPath, dbPath);
+                    main_js_1.default.info('[DB] Migration complete');
+                }
+                catch (error) {
+                    main_js_1.default.error('[DB] Migration failed:', error);
+                    // Fallback to old path if migration fails
+                    dbPath = oldDbPath;
+                }
+            }
         }
         // Debug Log
         try {
-            const fs = require('fs');
-            // Assuming running in dev where ./debug_info.txt maps to project root or similar. 
-            // We'll try to append.
-            fs.appendFileSync('debug_info.txt', `[DB] Connecting to: ${dbPath}\n`);
+            fs_1.default.appendFileSync('debug_info.txt', `[DB] Connecting to: ${dbPath}\n`);
         }
         catch { }
         console.log('[DB] Connecting to:', dbPath);

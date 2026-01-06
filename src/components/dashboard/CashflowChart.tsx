@@ -4,6 +4,7 @@ import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { useStore } from "@/store/useStore"
 import { format, subDays, isAfter, isSameDay, eachDayOfInterval } from "date-fns"
+import { EXCHANGE_RATES } from "@/lib/constants"
 
 import {
     Card,
@@ -87,7 +88,7 @@ export function CashflowChart() {
             style: 'currency',
             currency: currency,
             maximumFractionDigits: 0
-        }).format(currency === 'IDR' ? val : val / 16000);
+        }).format(currency === 'IDR' ? val : val / EXCHANGE_RATES.FALLBACK_IDR_TO_USD);
     }
 
     return (

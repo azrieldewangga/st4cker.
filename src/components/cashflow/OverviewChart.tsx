@@ -59,11 +59,17 @@ export function OverviewChart({ data, period, headerAction }: OverviewChartProps
         return { month: maxItem.date, value: maxItem.balance };
     }, [chartData]);
 
-    const { currency } = useStore();
+    const { currency, exchangeRate } = useStore();
     const formatMoney = (val: number) => {
-        return new Intl.NumberFormat(currency === 'IDR' ? 'id-ID' : 'en-US', {
-            style: 'currency', currency: currency, maximumFractionDigits: 0
-        }).format(val);
+        if (currency === 'IDR') {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency', currency: 'IDR', maximumFractionDigits: 0
+            }).format(val);
+        } else {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency', currency: 'USD'
+            }).format(val / exchangeRate);
+        }
     };
 
     return (

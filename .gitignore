@@ -25,3 +25,6 @@ dist-ssr
 .env
 electron/credentials/
 release/
+
+# Project planning (private)
+IMPLEMENTATION_PLAN.md

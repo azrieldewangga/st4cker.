@@ -34,9 +34,9 @@ export const backup = {
             // 3. Determine DB path
             let dbPath;
             if (process.env.VITE_DEV_SERVER_URL) {
-                dbPath = path.join(process.cwd(), 'campusdash.db');
+                dbPath = path.join(process.cwd(), 'st4cker.db');
             } else {
-                dbPath = path.join(app.getPath('userData'), 'campusdash.db');
+                dbPath = path.join(app.getPath('userData'), 'st4cker.db');
             }
 
             // 4. Force copy (Replace)

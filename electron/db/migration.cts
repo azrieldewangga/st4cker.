@@ -30,6 +30,10 @@ export const runMigration = () => {
         // Hardcoded check for project root if userData fails
         // Assuming project root is 2 levels up from userData if in dev default? No, usually distinct.
         // Let's assume the JSON is in the Current Working Directory (CWD) if running dev.
+
+        // NOTE: JSON paths intentionally kept as "campusdash-db.json" for backward compatibility.
+        // This allows users upgrading from v1.5.x to have their JSON data migrated to SQLite.
+        // As of v1.6.0, the SQLite database is renamed to st4cker.db (see electron/db/index.cts)
         const cwdJsonPath = path.join(process.cwd(), 'campusdash-db.json');
         const userDataJsonPath = path.join(userDataPath, 'campusdash-db.json');
 
