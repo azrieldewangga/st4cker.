@@ -15,6 +15,9 @@ import { userProfile } from './db/userProfile.cjs';
 import { materials } from './db/materials.cjs';
 import { backup } from './db/backup.cjs';
 import { subscriptions } from './db/subscriptions.cjs';
+import { projects } from './db/projects.cjs';
+import { projectSessions } from './db/project-sessions.cjs';
+import { projectAttachments } from './db/project-attachments.cjs';
 // driveService will be imported dynamically
 
 
@@ -100,8 +103,8 @@ const createWindow = () => {
     }
 
     // Wait for main window to be ready
-    // Wait for main window to be ready
     mainWindow.once('ready-to-show', () => {
+        console.log('[Main] MainWindow ready-to-show triggered');
         splashWindow?.webContents.send('splash-progress', { message: 'Ready!', percent: 100 });
 
         // Short delay to see the 100%
@@ -112,6 +115,17 @@ const createWindow = () => {
             mainWindow?.focus();
         }, 500);
     });
+
+    // Fallback: Force close splash after 10 seconds if ready-to-show doesn't fire
+    setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            console.log('[Main] Splash screen timeout - forcing close');
+            splashWindow?.close();
+            splashWindow = null;
+            mainWindow?.show();
+            mainWindow?.focus();
+        }
+    }, 10000);
 };
 
 // @ts-ignore
@@ -243,6 +257,40 @@ app.on('ready', async () => {
     ipcMain.handle('subscriptions:update', (_, id, data) => subscriptions.update(id, data));
     ipcMain.handle('subscriptions:delete', (_, id) => subscriptions.delete(id));
     ipcMain.handle('subscriptions:checkDeductions', () => subscriptions.checkAndProcessDeductions());
+
+    // Projects
+    ipcMain.handle('projects:list', () => projects.getAll());
+    ipcMain.handle('projects:getById', (_, id) => projects.getById(id));
+    ipcMain.handle('projects:create', (_, data) => projects.create({
+        ...data,
+        id: randomUUID(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }));
+    ipcMain.handle('projects:update', (_, id, data) => projects.update(id, data));
+    ipcMain.handle('projects:updateProgress', (_, id, progress) => projects.updateProgress(id, progress));
+    ipcMain.handle('projects:delete', (_, id) => projects.delete(id));
+
+    // Project Sessions
+    ipcMain.handle('projectSessions:listByProject', (_, projectId) => projectSessions.getByProjectId(projectId));
+    ipcMain.handle('projectSessions:getById', (_, id) => projectSessions.getById(id));
+    ipcMain.handle('projectSessions:create', (_, data) => projectSessions.create({
+        ...data,
+        id: randomUUID(),
+        createdAt: new Date().toISOString()
+    }));
+    ipcMain.handle('projectSessions:update', (_, id, data) => projectSessions.update(id, data));
+    ipcMain.handle('projectSessions:delete', (_, id) => projectSessions.delete(id));
+    ipcMain.handle('projectSessions:getStats', (_, projectId) => projectSessions.getStats(projectId));
+
+    // Project Attachments
+    ipcMain.handle('projectAttachments:listByProject', (_, projectId) => projectAttachments.getByProjectId(projectId));
+    ipcMain.handle('projectAttachments:create', (_, data) => projectAttachments.create({
+        ...data,
+        id: randomUUID(),
+        createdAt: new Date().toISOString()
+    }));
+    ipcMain.handle('projectAttachments:delete', (_, id) => projectAttachments.delete(id));
 
     // Backup & Restore
     ipcMain.handle('db:export', async () => {

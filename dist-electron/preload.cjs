@@ -55,6 +55,28 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
         delete: (id) => electron_1.ipcRenderer.invoke('subscriptions:delete', id),
         checkDeductions: () => electron_1.ipcRenderer.invoke('subscriptions:checkDeductions')
     },
+    projects: {
+        list: () => electron_1.ipcRenderer.invoke('projects:list'),
+        get: (id) => electron_1.ipcRenderer.invoke('projects:get', id),
+        create: (data) => electron_1.ipcRenderer.invoke('projects:create', data),
+        update: (id, data) => electron_1.ipcRenderer.invoke('projects:update', id, data),
+        updateProgress: (id, progress) => electron_1.ipcRenderer.invoke('projects:updateProgress', id, progress),
+        delete: (id) => electron_1.ipcRenderer.invoke('projects:delete', id)
+    },
+    projectSessions: {
+        listByProject: (projectId) => electron_1.ipcRenderer.invoke('projectSessions:listByProject', projectId),
+        get: (id) => electron_1.ipcRenderer.invoke('projectSessions:get', id),
+        create: (data) => electron_1.ipcRenderer.invoke('projectSessions:create', data),
+        update: (id, data) => electron_1.ipcRenderer.invoke('projectSessions:update', id, data),
+        delete: (id) => electron_1.ipcRenderer.invoke('projectSessions:delete', id),
+        getStats: (projectId) => electron_1.ipcRenderer.invoke('projectSessions:getStats', projectId)
+    },
+    projectAttachments: {
+        listByProject: (projectId) => electron_1.ipcRenderer.invoke('projectAttachments:listByProject', projectId),
+        get: (id) => electron_1.ipcRenderer.invoke('projectAttachments:get', id),
+        create: (data) => electron_1.ipcRenderer.invoke('projectAttachments:create', data),
+        delete: (id) => electron_1.ipcRenderer.invoke('projectAttachments:delete', id)
+    },
     reports: {
         exportPdf: (filename) => electron_1.ipcRenderer.invoke('reports:export-pdf', filename)
     },

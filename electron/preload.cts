@@ -62,6 +62,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
         checkDeductions: () => ipcRenderer.invoke('subscriptions:checkDeductions')
     },
 
+    projects: {
+        list: () => ipcRenderer.invoke('projects:list'),
+        get: (id: string) => ipcRenderer.invoke('projects:get', id),
+        create: (data: any) => ipcRenderer.invoke('projects:create', data),
+        update: (id: string, data: any) => ipcRenderer.invoke('projects:update', id, data),
+        updateProgress: (id: string, progress: number) => ipcRenderer.invoke('projects:updateProgress', id, progress),
+        delete: (id: string) => ipcRenderer.invoke('projects:delete', id)
+    },
+
+    projectSessions: {
+        listByProject: (projectId: string) => ipcRenderer.invoke('projectSessions:listByProject', projectId),
+        get: (id: string) => ipcRenderer.invoke('projectSessions:get', id),
+        create: (data: any) => ipcRenderer.invoke('projectSessions:create', data),
+        update: (id: string, data: any) => ipcRenderer.invoke('projectSessions:update', id, data),
+        delete: (id: string) => ipcRenderer.invoke('projectSessions:delete', id),
+        getStats: (projectId: string) => ipcRenderer.invoke('projectSessions:getStats', projectId)
+    },
+
+    projectAttachments: {
+        listByProject: (projectId: string) => ipcRenderer.invoke('projectAttachments:listByProject', projectId),
+        get: (id: string) => ipcRenderer.invoke('projectAttachments:get', id),
+        create: (data: any) => ipcRenderer.invoke('projectAttachments:create', data),
+        delete: (id: string) => ipcRenderer.invoke('projectAttachments:delete', id)
+    },
+
     reports: {
         exportPdf: (filename?: string) => ipcRenderer.invoke('reports:export-pdf', filename)
     },

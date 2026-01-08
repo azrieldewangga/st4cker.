@@ -262,7 +262,7 @@ const Schedule = () => {
 
             await fetchCourses();
             await fetchMaterials(detailSlot.data.course.id);
-            toast("Details have been updated", {
+            toast.success("Details Updated", {
                 description: detailSlot.data.course.name,
             });
         }
@@ -372,7 +372,7 @@ const Schedule = () => {
 
             if (newItems.length > 0) {
                 setLocalMaterials(prev => [...prev, ...newItems]);
-                toast("Files staged for upload", { description: "Don't forget to Save Changes" });
+                toast.info("Files Staged", { description: "Don't forget to click Save Changes" });
             }
         };
 
@@ -745,6 +745,9 @@ const Schedule = () => {
                             <Button variant="ghost" className="w-full justify-start h-8 text-sm text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
                                 setScheduleItem(contextMenu.day, contextMenu.time, '', '', '', '');
                                 setContextMenu(null);
+                                toast.success("Slot Cleared", {
+                                    action: { label: "Undo", onClick: () => undo() }
+                                });
                             }}>
                                 <Trash2 className="w-3 h-3 mr-2" /> Clear Slot
                             </Button>

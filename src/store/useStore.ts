@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Assignment, Course, UserProfile, Transaction, CourseMaterial, Subscription } from '../types/models';
+import { Assignment, Course, UserProfile, Transaction, CourseMaterial, Subscription, Project, ProjectSession, ProjectAttachment } from '../types/models';
 import { NotificationService } from '../services/NotificationService';
 import { getUSDRate, refreshExchangeRate } from '../services/exchangeRate';
 import {
@@ -50,7 +50,10 @@ type UndoOp =
         type: 'DELETE_TRANSACTION';
         payload: { id: string; data: Transaction }
     }
-    ;
+    | {
+        type: 'DELETE_PROJECT';
+        payload: { id: string; data: Project }
+    };
 
 interface AppState {
     // ... existing ...
@@ -142,6 +145,27 @@ interface AppState {
     deleteSubscription: (id: string) => Promise<void>;
     checkSubscriptionDeductions: () => Promise<void>;
 
+    // Projects
+    projects: Project[];
+    projectSessions: Record<string, ProjectSession[]>; // key: projectId
+    projectAttachments: Record<string, ProjectAttachment[]>; // key: projectId
+    fetchProjects: () => Promise<void>;
+    getProjectById: (id: string) => Promise<Project | null>;
+    addProject: (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Project | null>;
+    updateProject: (id: string, data: Partial<Project>) => Promise<void>;
+    deleteProject: (id: string, skipLog?: boolean) => Promise<void>;
+
+    // Project Sessions
+    fetchProjectSessions: (projectId: string) => Promise<void>;
+    addProjectSession: (data: Omit<ProjectSession, 'id' | 'createdAt'>) => Promise<void>;
+    updateProjectSession: (id: string, data: Partial<ProjectSession>) => Promise<void>;
+    deleteProjectSession: (id: string, projectId: string) => Promise<void>;
+
+    // Project Attachments
+    fetchProjectAttachments: (projectId: string) => Promise<void>;
+    addProjectAttachment: (data: Omit<ProjectAttachment, 'id' | 'createdAt'>) => Promise<void>;
+    deleteProjectAttachment: (id: string, projectId: string) => Promise<void>;
+
     // Notifications
     notification: { message: string, type: 'info' | 'success' | 'error' | 'warning' } | null;
     showNotification: (message: string, type?: 'info' | 'success' | 'error' | 'warning') => void;
@@ -185,6 +209,12 @@ export const useStore = create<AppState>((set, get) => ({
                 await window.electronAPI.assignments.create(op.payload.data);
                 await get().fetchAssignments();
                 break;
+            case 'DELETE_PROJECT':
+                // Restore deleted project
+                // @ts-ignore
+                await window.electronAPI.projects.create(op.payload.data);
+                await get().fetchProjects();
+                break;
         }
     },
 
@@ -219,6 +249,9 @@ export const useStore = create<AppState>((set, get) => ({
             case 'DELETE_ASSIGNMENT':
                 await get().deleteAssignment(op.payload.id, true);
                 break;
+            case 'DELETE_PROJECT':
+                await get().deleteProject(op.payload.id, true);
+                break;
         }
     },
 
@@ -231,6 +264,9 @@ export const useStore = create<AppState>((set, get) => ({
     schedule: {},
     materials: {}, // Initialize materials
     subscriptions: [], // Initialize subscriptions
+    projects: [], // Initialize projects
+    projectSessions: {}, // Initialize project sessions by projectId
+    projectAttachments: {}, // Initialize project attachments by projectId
     transactions: [],
     isLoading: false,
     isAppReady: false,
@@ -1056,6 +1092,175 @@ export const useStore = create<AppState>((set, get) => ({
             }
         } catch (error) {
             console.error('Check deductions error:', error);
+        }
+    },
+
+    // --- Projects ---
+
+    fetchProjects: async () => {
+        try {
+            const data = await window.electronAPI.projects.list();
+            set({ projects: data });
+        } catch (error) {
+            console.error('Fetch projects error:', error);
+        }
+    },
+
+    getProjectById: async (id: string) => {
+        try {
+            const project = await window.electronAPI.projects.getById(id);
+            return project;
+        } catch (error) {
+            console.error('Get project by ID error:', error);
+            return null;
+        }
+    },
+
+    addProject: async (data) => {
+        try {
+            const created = await window.electronAPI.projects.create(data);
+            get().fetchProjects();
+            get().showNotification('Project created successfully', 'success');
+            return created;
+        } catch (error) {
+            console.error('Add project error:', error);
+            get().showNotification('Failed to create project', 'error');
+            return null;
+        }
+    },
+
+    updateProject: async (id: string, data) => {
+        try {
+            await window.electronAPI.projects.update(id, data);
+            get().fetchProjects();
+            get().showNotification('Project updated successfully', 'success');
+        } catch (error) {
+            console.error('Update project error:', error);
+            get().showNotification('Failed to update project', 'error');
+        }
+    },
+
+    deleteProject: async (id: string, skipLog = false) => {
+        try {
+            if (!skipLog) {
+                const project = get().projects.find(p => p.id === id);
+                if (project) {
+                    set({ redoStack: [] });
+                    set(state => ({
+                        undoStack: [...state.undoStack, {
+                            type: 'DELETE_PROJECT',
+                            payload: { id, data: project }
+                        }]
+                    }));
+                }
+            }
+
+            await window.electronAPI.projects.delete(id);
+            get().fetchProjects();
+            // Clean up sessions and attachments from state
+            const { projectSessions, projectAttachments } = get();
+            const newSessions = { ...projectSessions };
+            const newAttachments = { ...projectAttachments };
+            delete newSessions[id];
+            delete newAttachments[id];
+            set({ projectSessions: newSessions, projectAttachments: newAttachments });
+            get().showNotification('Project deleted successfully', 'success');
+        } catch (error) {
+            console.error('Delete project error:', error);
+            get().showNotification('Failed to delete project', 'error');
+        }
+    },
+
+    // --- Project Sessions ---
+
+    fetchProjectSessions: async (projectId: string) => {
+        try {
+            const data = await window.electronAPI.projectSessions.listByProject(projectId);
+            set((state) => ({
+                projectSessions: {
+                    ...state.projectSessions,
+                    [projectId]: data
+                }
+            }));
+        } catch (error) {
+            console.error('Fetch project sessions error:', error);
+        }
+    },
+
+    addProjectSession: async (data) => {
+        try {
+            await window.electronAPI.projectSessions.create(data);
+            // Update project's totalProgress and lastSessionDate
+            await window.electronAPI.projects.updateProgress(data.projectId, data.progressAfter);
+            get().fetchProjectSessions(data.projectId);
+            get().fetchProjects(); // Refresh to get updated progress
+            get().showNotification('Progress logged successfully', 'success');
+        } catch (error) {
+            console.error('Add project session error:', error);
+            get().showNotification('Failed to log progress', 'error');
+        }
+    },
+
+    updateProjectSession: async (id: string, data) => {
+        try {
+            await window.electronAPI.projectSessions.update(id, data);
+            // If progressAfter changed, might need to update project
+            if (data.projectId) {
+                get().fetchProjectSessions(data.projectId);
+            }
+            get().showNotification('Session updated successfully', 'success');
+        } catch (error) {
+            console.error('Update project session error:', error);
+            get().showNotification('Failed to update session', 'error');
+        }
+    },
+
+    deleteProjectSession: async (id: string, projectId: string) => {
+        try {
+            await window.electronAPI.projectSessions.delete(id);
+            get().fetchProjectSessions(projectId);
+            get().showNotification('Session deleted successfully', 'success');
+        } catch (error) {
+            console.error('Delete project session error:', error);
+            get().showNotification('Failed to delete session', 'error');
+        }
+    },
+
+    // --- Project Attachments ---
+
+    fetchProjectAttachments: async (projectId: string) => {
+        try {
+            const data = await window.electronAPI.projectAttachments.listByProject(projectId);
+            set((state) => ({
+                projectAttachments: {
+                    ...state.projectAttachments,
+                    [projectId]: data
+                }
+            }));
+        } catch (error) {
+            console.error('Fetch project attachments error:', error);
+        }
+    },
+
+    addProjectAttachment: async (data) => {
+        try {
+            await window.electronAPI.projectAttachments.create(data);
+            get().fetchProjectAttachments(data.projectId);
+            get().showNotification('Attachment added successfully', 'success');
+        } catch (error) {
+            console.error('Add project attachment error:', error);
+            get().showNotification('Failed to add attachment', 'error');
+        }
+    },
+
+    deleteProjectAttachment: async (id: string, projectId: string) => {
+        try {
+            await window.electronAPI.projectAttachments.delete(id);
+            get().fetchProjectAttachments(projectId);
+            get().showNotification('Attachment deleted successfully', 'success');
+        } catch (error) {
+            console.error('Delete project attachment error:', error);
+            get().showNotification('Failed to delete attachment', 'error');
         }
     },
 

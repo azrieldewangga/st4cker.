@@ -53,6 +53,31 @@ export interface IElectronAPI {
         checkDeductions: () => Promise<{ deductionsMade: number }>;
     };
 
+    projects: {
+        list: () => Promise<any[]>;
+        get: (id: string) => Promise<any>;
+        create: (data: any) => Promise<any>;
+        update: (id: string, data: any) => Promise<any>;
+        updateProgress: (id: string, progress: number) => Promise<any>;
+        delete: (id: string) => Promise<void>;
+    };
+
+    projectSessions: {
+        listByProject: (projectId: string) => Promise<any[]>;
+        get: (id: string) => Promise<any>;
+        create: (data: any) => Promise<any>;
+        update: (id: string, data: any) => Promise<any>;
+        delete: (id: string) => Promise<void>;
+        getStats: (projectId: string) => Promise<any>;
+    };
+
+    projectAttachments: {
+        listByProject: (projectId: string) => Promise<any[]>;
+        get: (id: string) => Promise<any>;
+        create: (data: any) => Promise<any>;
+        delete: (id: string) => Promise<void>;
+    };
+
     reports: {
         exportPdf: (filename?: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
     };

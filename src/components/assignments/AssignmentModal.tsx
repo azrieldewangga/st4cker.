@@ -101,7 +101,9 @@ const AssignmentModal = ({ isOpen, onClose, editingId }: AssignmentModalProps) =
                     deadline: formData.deadline.toISOString(),
                     note: formData.note
                 });
-                toast("Assignment updated");
+                toast.success("Assignment Updated", {
+                    description: `"${finalTitle}" has been updated successfully.`
+                });
             } else {
                 await addAssignment({
                     courseId: formData.courseName,
@@ -111,7 +113,9 @@ const AssignmentModal = ({ isOpen, onClose, editingId }: AssignmentModalProps) =
                     status: 'to-do',
                     note: formData.note
                 });
-                toast("Assignment created");
+                toast.success("Assignment Created", {
+                    description: `"${finalTitle}" has been added successfully.`
+                });
             }
             onClose();
         } catch (error: any) {

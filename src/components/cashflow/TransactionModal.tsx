@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 
 import { cn } from "@/lib/utils";
+import { toast } from 'sonner';
 
 interface TransactionModalProps {
     isOpen: boolean;
@@ -77,18 +78,25 @@ const TransactionModal = ({ isOpen, onClose }: TransactionModalProps) => {
         }
 
         try {
+            const finalAmount = parseFloat(formData.amount.replace(/,/g, ''));
             await addTransaction({
                 title: formData.title,
-                amount: parseFloat(formData.amount.replace(/,/g, '')) * (formData.type === 'expense' ? -1 : 1),
+                amount: finalAmount * (formData.type === 'expense' ? -1 : 1),
                 type: formData.type,
                 category: formData.category,
-                date: formData.date.toISOString() // Fix: Use ISO string for Zod validation
+                date: formData.date.toISOString()
+            });
+
+            toast.success("Transaction Added", {
+                description: `${formData.type === 'income' ? 'Income' : 'Expense'} of ${currency} ${finalAmount.toLocaleString()} logged.`
             });
 
             onClose();
         } catch (error) {
             console.error("Failed to add transaction:", error);
-            // Optionally set error state here if you want to show it in UI
+            toast.error("Failed to add transaction", {
+                description: "Please check your inputs and try again."
+            });
         }
     };
 

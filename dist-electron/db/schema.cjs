@@ -81,11 +81,60 @@ const initSchema = (db) => {
         updatedAt TEXT
     );
 
+    -- Project Progress Tracking Tables
+    CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        courseId TEXT,
+        description TEXT,
+        startDate TEXT NOT NULL,
+        deadline TEXT NOT NULL,
+        totalProgress INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'active',
+        priority TEXT DEFAULT 'medium',
+        semester INTEGER,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        lastSessionDate TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS project_sessions (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        sessionDate TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        note TEXT,
+        progressBefore INTEGER NOT NULL,
+        progressAfter INTEGER NOT NULL,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS project_attachments (
+        id TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL,
+        size INTEGER,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     -- Additional Performance Indices (Phase 6)
     CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
     CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type);
     CREATE INDEX IF NOT EXISTS idx_assignments_semester ON assignments(semester);
     CREATE INDEX IF NOT EXISTS idx_courses_semester ON performance_courses(semester);
+
+    -- Project Progress Tracking Indices
+    CREATE INDEX IF NOT EXISTS idx_projects_deadline ON projects(deadline);
+    CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+    CREATE INDEX IF NOT EXISTS idx_projects_semester ON projects(semester);
+    CREATE INDEX IF NOT EXISTS idx_projects_priority ON projects(priority);
+    CREATE INDEX IF NOT EXISTS idx_project_sessions_projectId ON project_sessions(projectId);
+    CREATE INDEX IF NOT EXISTS idx_project_sessions_date ON project_sessions(sessionDate);
+    CREATE INDEX IF NOT EXISTS idx_project_attachments_projectId ON project_attachments(projectId);
 
     `;
     db.exec(schema);

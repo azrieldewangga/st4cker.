@@ -19,6 +19,9 @@ const userProfile_cjs_1 = require("./db/userProfile.cjs");
 const materials_cjs_1 = require("./db/materials.cjs");
 const backup_cjs_1 = require("./db/backup.cjs");
 const subscriptions_cjs_1 = require("./db/subscriptions.cjs");
+const projects_cjs_1 = require("./db/projects.cjs");
+const project_sessions_cjs_1 = require("./db/project-sessions.cjs");
+const project_attachments_cjs_1 = require("./db/project-attachments.cjs");
 // driveService will be imported dynamically
 // JSON store deprecated — migrated to SQLite
 // SimpleStore removed.
@@ -94,8 +97,8 @@ const createWindow = () => {
         mainWindow?.loadFile(path_1.default.join(__dirname, '../dist/index.html'));
     }
     // Wait for main window to be ready
-    // Wait for main window to be ready
     mainWindow.once('ready-to-show', () => {
+        console.log('[Main] MainWindow ready-to-show triggered');
         splashWindow?.webContents.send('splash-progress', { message: 'Ready!', percent: 100 });
         // Short delay to see the 100%
         setTimeout(() => {
@@ -105,6 +108,16 @@ const createWindow = () => {
             mainWindow?.focus();
         }, 500);
     });
+    // Fallback: Force close splash after 10 seconds if ready-to-show doesn't fire
+    setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            console.log('[Main] Splash screen timeout - forcing close');
+            splashWindow?.close();
+            splashWindow = null;
+            mainWindow?.show();
+            mainWindow?.focus();
+        }
+    }, 10000);
 };
 // @ts-ignore
 const main_js_1 = __importDefault(require("electron-log/main.js"));
@@ -221,6 +234,37 @@ electron_1.app.on('ready', async () => {
     electron_1.ipcMain.handle('subscriptions:update', (_, id, data) => subscriptions_cjs_1.subscriptions.update(id, data));
     electron_1.ipcMain.handle('subscriptions:delete', (_, id) => subscriptions_cjs_1.subscriptions.delete(id));
     electron_1.ipcMain.handle('subscriptions:checkDeductions', () => subscriptions_cjs_1.subscriptions.checkAndProcessDeductions());
+    // Projects
+    electron_1.ipcMain.handle('projects:list', () => projects_cjs_1.projects.getAll());
+    electron_1.ipcMain.handle('projects:getById', (_, id) => projects_cjs_1.projects.getById(id));
+    electron_1.ipcMain.handle('projects:create', (_, data) => projects_cjs_1.projects.create({
+        ...data,
+        id: (0, crypto_1.randomUUID)(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }));
+    electron_1.ipcMain.handle('projects:update', (_, id, data) => projects_cjs_1.projects.update(id, data));
+    electron_1.ipcMain.handle('projects:updateProgress', (_, id, progress) => projects_cjs_1.projects.updateProgress(id, progress));
+    electron_1.ipcMain.handle('projects:delete', (_, id) => projects_cjs_1.projects.delete(id));
+    // Project Sessions
+    electron_1.ipcMain.handle('projectSessions:listByProject', (_, projectId) => project_sessions_cjs_1.projectSessions.getByProjectId(projectId));
+    electron_1.ipcMain.handle('projectSessions:getById', (_, id) => project_sessions_cjs_1.projectSessions.getById(id));
+    electron_1.ipcMain.handle('projectSessions:create', (_, data) => project_sessions_cjs_1.projectSessions.create({
+        ...data,
+        id: (0, crypto_1.randomUUID)(),
+        createdAt: new Date().toISOString()
+    }));
+    electron_1.ipcMain.handle('projectSessions:update', (_, id, data) => project_sessions_cjs_1.projectSessions.update(id, data));
+    electron_1.ipcMain.handle('projectSessions:delete', (_, id) => project_sessions_cjs_1.projectSessions.delete(id));
+    electron_1.ipcMain.handle('projectSessions:getStats', (_, projectId) => project_sessions_cjs_1.projectSessions.getStats(projectId));
+    // Project Attachments
+    electron_1.ipcMain.handle('projectAttachments:listByProject', (_, projectId) => project_attachments_cjs_1.projectAttachments.getByProjectId(projectId));
+    electron_1.ipcMain.handle('projectAttachments:create', (_, data) => project_attachments_cjs_1.projectAttachments.create({
+        ...data,
+        id: (0, crypto_1.randomUUID)(),
+        createdAt: new Date().toISOString()
+    }));
+    electron_1.ipcMain.handle('projectAttachments:delete', (_, id) => project_attachments_cjs_1.projectAttachments.delete(id));
     // Backup & Restore
     electron_1.ipcMain.handle('db:export', async () => {
         const { dialog } = require('electron');
