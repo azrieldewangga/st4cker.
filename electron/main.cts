@@ -611,7 +611,7 @@ app.on('ready', async () => {
                             console.log('[Telegram] Received progress.logged:', payload);
 
                             const projectId = payload.projectId;
-                            const project = projects.getById(projectId);
+                            const project = projects.getById(projectId) as any;
 
                             if (project) {
                                 const duration = payload.duration || 0;
@@ -620,18 +620,22 @@ app.on('ready', async () => {
                                 const newStatus = payload.status || project.status;
 
                                 // 1. Create Session Log
-                                projects.addSession({
+                                // projectSessions is imported from ./db/project-sessions.cjs
+                                projectSessions.create({
                                     id: event.eventId,
                                     projectId: projectId,
                                     duration: duration,
-                                    notes: note,
+                                    note: note,
                                     progressBefore: project.totalProgress || 0,
                                     progressAfter: newProgress,
-                                    createdAt: payload.loggedAt || new Date().toISOString()
+                                    createdAt: payload.loggedAt || new Date().toISOString(),
+                                    sessionDate: payload.loggedAt || new Date().toISOString()
                                 });
 
-                                // 2. Update Project Progress
-                                projects.updateProgress(projectId, newProgress);
+                                // 2. Update Project Progress (Redundant if projectSessions.create does it, but kept for safety or if logic changes)
+                                // projects.updateProgress(projectId, newProgress); 
+                                // projectSessions.create already updates progress in 'project-sessions.cts', so we can skip or keep.
+                                // Keeping it is fine, just an extra update.
 
                                 // 3. Update Project Status if changed
                                 if (newStatus && newStatus !== project.status) {
@@ -654,7 +658,6 @@ app.on('ready', async () => {
                                 console.error('[Telegram] Project not found for progress log:', projectId);
                             }
                         }
-
                         else if (event.eventType === 'transaction.created') {
                             const payload = event.payload;
                             console.log('[Telegram] Received transaction.created:', payload);
