@@ -929,8 +929,16 @@ app.on('ready', async () => {
         if (!telegramStore) return { paired: false, status: 'unknown' };
         const paired = telegramStore.get('paired', false);
         const expiresAt = telegramStore.get('expiresAt');
+        const deviceId = telegramStore.get('deviceId');
+        const userId = telegramStore.get('userId');
         const connected = telegramSocket?.connected || false;
-        return { paired, expiresAt, status: paired ? (connected ? 'connected' : 'disconnected') : 'unknown' };
+        return {
+            paired,
+            expiresAt,
+            deviceId,
+            userId,
+            status: paired ? (connected ? 'connected' : 'disconnected') : 'unknown'
+        };
     });
 
     // Listeners
