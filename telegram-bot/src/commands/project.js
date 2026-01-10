@@ -176,9 +176,14 @@ export const handleProjectCallback = async (bot, query, broadcastEvent) => {
 
         if (!userSession || userSession.state !== 'AWAITING_PROJECT_COURSE') return;
 
+        // Fetch Course Name
+        const userData = getUserData(userId);
+        const course = userData.courses ? userData.courses.find(c => c.id === courseId) : null;
+        const courseName = course ? course.name : 'Unknown Course';
+
         updateSession(userId, {
             state: 'AWAITING_PROJECT_PRIORITY',
-            data: { ...userSession.data, courseId }
+            data: { ...userSession.data, courseId, courseName }
         });
 
         bot.answerCallbackQuery(query.id);
@@ -387,7 +392,7 @@ export const handleProjectInput = async (bot, msg, broadcastEvent) => {
         });
         saveUserData(userId, userData);
 
-        bot.sendMessage(chatId, `✅ *Project Created!*\n\n📌 ${title}\n📅 Due: ${deadline}\n⚡ Priority: ${priority}\n📂 Type: ${projectType === 'course' ? 'Course Project' : 'Personal'}\n\nSynced to Desktop.`);
+        bot.sendMessage(chatId, `✅ *Project Created!*\n\n📌 ${title}\n📅 Due: ${deadline}\n⚡ Priority: ${priority}\n📂 Type: ${projectType === 'course' ? `Course Project (${userSession.data.courseName})` : 'Personal'}\n\nSynced to Desktop.`);
         return true;
     }
 
