@@ -137,6 +137,17 @@ export const initSchema = (db: Database.Database) => {
     CREATE INDEX IF NOT EXISTS idx_project_sessions_date ON project_sessions(sessionDate);
     CREATE INDEX IF NOT EXISTS idx_project_attachments_projectId ON project_attachments(projectId);
 
+    CREATE TABLE IF NOT EXISTS applied_events (
+        event_id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        applied_at INTEGER NOT NULL,
+        source TEXT NOT NULL, -- 'websocket' or 'drive'
+        payload_hash TEXT     -- For extra verification
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_applied_at ON applied_events(applied_at);
+    CREATE INDEX IF NOT EXISTS idx_event_type ON applied_events(event_type);
+
     `;
 
     db.exec(schema);

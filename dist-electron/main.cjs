@@ -412,6 +412,7 @@ electron_1.app.on('ready', async () => {
     // ========================================
     let telegramStore = null;
     let telegramSocket = null;
+    let initTelegramWebSocket; // Defined outer scope
     const WEBSOCKET_URL = process.env.TELEGRAM_WEBSOCKET_URL || 'https://elegant-heart-production.up.railway.app';
     // Initialize Telegram modules async
     async function initTelegramModules() {
@@ -423,24 +424,40 @@ electron_1.app.on('ready', async () => {
                 encryptionKey: 'st4cker-telegram-encryption-key'
             });
             // Initialize WebSocket connection
-            function initTelegramWebSocket(sessionToken) {
+            initTelegramWebSocket = (token) => {
+                console.log(`[Telegram] Initializing WebSocket with token: ${token ? token.slice(0, 8) + '...' : 'NONE'}`);
                 if (telegramSocket?.connected) {
-                    console.log('[Telegram] Already connected');
+                    console.log('[Telegram] Socket is already connected (id=' + telegramSocket.id + ')');
+                    // Ensure listeners are attached even if re-using socket?
+                    // Ideally we shouldn't re-init.
                     return;
                 }
                 console.log(`[Telegram] Connecting to ${WEBSOCKET_URL}`);
-                telegramSocket = ioClient(WEBSOCKET_URL, {
-                    auth: { token: sessionToken },
-                    transports: ['websocket', 'polling'],
-                    reconnection: true,
-                    reconnectionDelay: 1000,
-                    reconnectionAttempts: 10
-                });
+                // Force WebSocket transport to avoid polling issues
+                try {
+                    telegramSocket = ioClient(WEBSOCKET_URL, {
+                        auth: { token: token },
+                        transports: ['websocket'], // Force websocket
+                        reconnection: true,
+                        reconnectionDelay: 1000,
+                        reconnectionAttempts: 20
+                    });
+                    console.log('[Telegram] Socket instance created');
+                }
+                catch (err) {
+                    console.error('[Telegram] Failed to create socket instance:', err);
+                }
                 telegramSocket.on('connect', () => {
-                    console.log('[Telegram] WebSocket connected');
+                    console.log(`[Telegram] WebSocket connected (ID: ${telegramSocket.id})`);
                     electron_1.BrowserWindow.getAllWindows().forEach((win) => {
                         win.webContents.send('telegram:status-change', 'connected');
                     });
+                    // Heartbeat Logger
+                    setInterval(() => {
+                        if (telegramSocket) {
+                            console.log(`[Telegram Heartbeat] Connected: ${telegramSocket.connected}, ID: ${telegramSocket.id}`);
+                        }
+                    }, 5000);
                     // Auto-sync whenever we connect/reconnect
                     console.log('[Telegram] Connected! Triggering auto-sync...');
                     (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(err => {
@@ -456,25 +473,32 @@ electron_1.app.on('ready', async () => {
                 telegramSocket.on('connect_error', (error) => {
                     console.error('[Telegram] Connection error:', error.message);
                 });
+                telegramSocket.onAny((event, ...args) => {
+                    console.log(`[Telegram Debug] Incoming Event: ${event}`, args);
+                });
                 telegramSocket.on('telegram-event', async (event) => {
-                    console.log('[Telegram] Received event:', event.eventType);
-                    if (event.eventType === 'task.created') {
+                    console.log('[Telegram Debug] Raw Event Payload:', JSON.stringify(event, null, 2));
+                    console.log('[Telegram] Received event:', event.eventType, event.eventId);
+                    // 1. Idempotency Check: Check applied_events table
+                    if (event.eventId) {
                         try {
-                            const { courseId, courseName, type, dueDate, notes, semester } = event.payload;
-                            // Check for duplicates (idempotency) - basic check for now
-                            // ideally checking applied_events table
-                            // Check if already exists (basic de-dup)
-                            const existing = assignments_cjs_1.assignments.getAll().find(a => a.status === 'pending' &&
-                                a.type === type &&
-                                a.course === courseName &&
-                                Math.abs(new Date(a.deadline).getTime() - new Date(dueDate).getTime()) < 60000 // 1 minute leniency
-                            );
+                            const db = (0, index_cjs_1.getDB)();
+                            const existing = db.prepare('SELECT event_id FROM applied_events WHERE event_id = ?').get(event.eventId);
                             if (existing) {
-                                console.log('[Telegram] Duplicate task detected, skipping:', existing.id);
-                                if (event.eventId)
-                                    telegramSocket.emit('event-ack', event.eventId);
+                                console.log(`[Telegram] Event ${event.eventId} already applied. Auto-ACK.`);
+                                telegramSocket.emit('event-ack', event.eventId);
                                 return;
                             }
+                        }
+                        catch (e) {
+                            console.error('[Telegram] Error checking duplication:', e);
+                        }
+                    }
+                    let success = false;
+                    try {
+                        // --- EVENT PROCESSING ---
+                        if (event.eventType === 'task.created') {
+                            const { courseId, courseName, type, dueDate, notes, semester } = event.payload;
                             // Create assignment
                             const newAssignment = {
                                 id: (0, crypto_1.randomUUID)(),
@@ -490,33 +514,13 @@ electron_1.app.on('ready', async () => {
                             };
                             assignments_cjs_1.assignments.create(newAssignment);
                             console.log('[Telegram] Assignment created from event:', newAssignment.id);
-                            // Notify UI
-                            electron_1.BrowserWindow.getAllWindows().forEach(win => {
-                                win.webContents.send('refresh-data');
-                            });
-                            // System Notification
                             new (require('electron').Notification)({
                                 title: 'New Task Added',
                                 body: `${courseName} - ${type}\nDue: ${new Date(dueDate).toLocaleDateString()}`
                             }).show();
-                            // ACKNOWLEDGE EVENT
-                            // This tells the server we successfully processed it, so it can delete from pending queue.
-                            if (event.eventId) {
-                                console.log(`[Telegram] Acknowledging event ${event.eventId}`);
-                                telegramSocket.emit('event-ack', event.eventId);
-                            }
-                            // SYNC BACK TO BOT
-                            if (telegramStore && telegramStore.get('paired')) {
-                                (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(console.error);
-                            }
+                            success = true;
                         }
-                        catch (error) {
-                            console.error('[Telegram] Failed to process task.created:', error);
-                        }
-                    }
-                    // Handle Task Updates
-                    if (event.eventType === 'task.updated') {
-                        try {
+                        else if (event.eventType === 'task.updated') {
                             const { id, status } = event.payload;
                             console.log(`[Telegram] Received task.updated for ${id} to ${status}`);
                             let appStatus = status;
@@ -525,14 +529,9 @@ electron_1.app.on('ready', async () => {
                                 'in-progress': 'progress',
                                 'completed': 'done'
                             };
-                            if (statusMap[status]) {
+                            if (statusMap[status])
                                 appStatus = statusMap[status];
-                            }
-                            const success = assignments_cjs_1.assignments.updateStatus(id, appStatus);
-                            if (success) {
-                                electron_1.BrowserWindow.getAllWindows().forEach(win => {
-                                    win.webContents.send('refresh-data');
-                                });
+                            if (assignments_cjs_1.assignments.updateStatus(id, appStatus)) {
                                 const displayStatusMap = {
                                     'to-do': 'To Do',
                                     'progress': 'In Progress',
@@ -543,94 +542,89 @@ electron_1.app.on('ready', async () => {
                                     title: 'Task Updated',
                                     body: `Task updated to: ${displayStatus}`
                                 }).show();
-                            }
-                            if (event.eventId) {
-                                telegramSocket.emit('event-ack', event.eventId);
+                                success = true;
                             }
                         }
-                        catch (error) {
-                            console.error('[Telegram] Failed to process task.updated:', error);
-                        }
-                    }
-                    // Handle New Project
-                    if (event.eventType === 'project.created') {
-                        try {
-                            const { title, description, deadline, priority } = event.payload;
-                            console.log(`[Telegram] Received project.created: ${title}`);
+                        else if (event.eventType === 'project.created') {
+                            const payload = event.payload;
+                            console.log('[Telegram] Received project.created:', payload);
+                            // Payload: { title, description, deadline, priority, type, courseId }
                             const newProject = {
-                                id: (0, crypto_1.randomUUID)(),
-                                title,
-                                description,
-                                startDate: new Date().toISOString(),
-                                deadline: deadline,
+                                id: event.eventId,
+                                title: payload.title,
+                                description: payload.description || '',
+                                deadline: payload.deadline,
+                                priority: payload.priority || 'medium',
+                                status: 'in_progress',
+                                type: payload.type === 'course' ? 'Course Project' : 'Personal Project',
+                                courseId: payload.courseId || null, // Map courseId
                                 totalProgress: 0,
-                                status: 'active',
-                                priority: priority || 'medium',
-                                semester: 1,
                                 createdAt: new Date().toISOString(),
-                                updatedAt: new Date().toISOString()
+                                updatedAt: new Date().toISOString(),
+                                target_word_count: 0 // Default
                             };
                             projects_cjs_1.projects.create(newProject);
-                            electron_1.BrowserWindow.getAllWindows().forEach(win => {
-                                win.webContents.send('refresh-data');
-                            });
                             new (require('electron').Notification)({
-                                title: 'New Project Created',
-                                body: `${title}\nDeadline: ${new Date(deadline).toLocaleDateString()}`
+                                title: 'Project Created',
+                                body: `${payload.title} (Due: ${payload.deadline})`
                             }).show();
-                            if (event.eventId)
-                                telegramSocket.emit('event-ack', event.eventId);
-                            if (telegramStore && telegramStore.get('paired'))
-                                (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(console.error);
+                            success = true;
                         }
-                        catch (error) {
-                            console.error('[Telegram] Failed to process project.created:', error);
-                        }
-                    }
-                    // Handle Progress Log
-                    if (event.eventType === 'progress.logged') {
-                        try {
-                            const { projectId, duration, note, loggedAt } = event.payload;
-                            console.log(`[Telegram] Received progress.logged for ${projectId}: ${duration}m`);
+                        else if (event.eventType === 'progress.logged') {
+                            const payload = event.payload;
+                            // Payload: { projectId, duration, note, status, progress, loggedAt }
+                            console.log('[Telegram] Received progress.logged:', payload);
+                            const projectId = payload.projectId;
                             const project = projects_cjs_1.projects.getById(projectId);
-                            if (!project) {
-                                console.error('[Telegram] Project not found for progress log:', projectId);
-                                return;
+                            if (project) {
+                                const duration = payload.duration || 0;
+                                const note = payload.note || '';
+                                const newProgress = payload.progress !== undefined ? payload.progress : (project.totalProgress || 0);
+                                const newStatus = payload.status || project.status;
+                                // 1. Create Session Log
+                                // projectSessions is imported from ./db/project-sessions.cjs
+                                project_sessions_cjs_1.projectSessions.create({
+                                    id: event.eventId,
+                                    projectId: projectId,
+                                    duration: duration,
+                                    note: note,
+                                    progressBefore: project.totalProgress || 0,
+                                    progressAfter: newProgress,
+                                    createdAt: payload.loggedAt || new Date().toISOString(),
+                                    sessionDate: payload.loggedAt || new Date().toISOString()
+                                });
+                                // 2. Update Project Progress (Redundant if projectSessions.create does it, but kept for safety or if logic changes)
+                                // projects.updateProgress(projectId, newProgress); 
+                                // projectSessions.create already updates progress in 'project-sessions.cts', so we can skip or keep.
+                                // Keeping it is fine, just an extra update.
+                                // 3. Update Project Status if changed
+                                if (newStatus && newStatus !== project.status) {
+                                    const db = (0, index_cjs_1.getDB)();
+                                    // Status map: Active -> in_progress, Completed -> completed, On Hold -> on_hold
+                                    let dbStatus = 'in_progress';
+                                    if (newStatus.toLowerCase() === 'completed')
+                                        dbStatus = 'completed';
+                                    if (newStatus.toLowerCase() === 'on hold')
+                                        dbStatus = 'on_hold';
+                                    if (newStatus.toLowerCase() === 'active')
+                                        dbStatus = 'in_progress';
+                                    db.prepare('UPDATE projects SET status = ? WHERE id = ?').run(dbStatus, projectId);
+                                }
+                                new (require('electron').Notification)({
+                                    title: 'Progress Logged',
+                                    body: `${project.title}: ${newProgress}% (${duration}m)`
+                                }).show();
+                                success = true;
                             }
-                            project_sessions_cjs_1.projectSessions.create({
-                                id: (0, crypto_1.randomUUID)(),
-                                projectId,
-                                sessionDate: loggedAt || new Date().toISOString(),
-                                duration,
-                                note,
-                                progressBefore: project.totalProgress || 0,
-                                progressAfter: project.totalProgress || 0,
-                                createdAt: new Date().toISOString()
-                            });
-                            projects_cjs_1.projects.updateProgress(projectId, project.totalProgress || 0);
-                            electron_1.BrowserWindow.getAllWindows().forEach(win => {
-                                win.webContents.send('refresh-data');
-                            });
-                            new (require('electron').Notification)({
-                                title: 'Progress Logged',
-                                body: `Logged ${duration}m on ${project.title}`
-                            }).show();
-                            if (event.eventId)
-                                telegramSocket.emit('event-ack', event.eventId);
-                            if (telegramStore && telegramStore.get('paired'))
-                                (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(console.error);
+                            else {
+                                console.error('[Telegram] Project not found for progress log:', projectId);
+                            }
                         }
-                        catch (error) {
-                            console.error('[Telegram] Failed to process progress.logged:', error);
-                        }
-                    }
-                    // Handle Transaction Creation
-                    if (event.eventType === 'transaction.created') {
-                        try {
+                        else if (event.eventType === 'transaction.created') {
                             const payload = event.payload;
                             console.log('[Telegram] Received transaction.created:', payload);
                             const newTransaction = {
-                                id: event.eventId,
+                                id: event.eventId, // Using eventId as transaction ID to safe-guard duplication naturally
                                 title: payload.description || payload.type,
                                 type: payload.type,
                                 category: payload.category,
@@ -641,43 +635,61 @@ electron_1.app.on('ready', async () => {
                                 updatedAt: new Date().toISOString()
                             };
                             transactions_cjs_1.transactions.create(newTransaction);
-                            electron_1.BrowserWindow.getAllWindows().forEach(win => {
-                                win.webContents.send('refresh-data');
-                            });
                             new (require('electron').Notification)({
                                 title: 'Transaction Added',
                                 body: `${payload.type === 'income' ? '+' : '-'} Rp ${payload.amount.toLocaleString('id-ID')} (${payload.category})`
                             }).show();
-                            if (event.eventId)
-                                telegramSocket.emit('event-ack', event.eventId);
-                            if (telegramStore && telegramStore.get('paired'))
-                                (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(console.error);
+                            success = true;
                         }
-                        catch (error) {
-                            console.error('[Telegram] Failed to process transaction.created:', error);
+                        // --- POST PROCESSING ---
+                        if (success) {
+                            // 1. Notify UI
+                            electron_1.BrowserWindow.getAllWindows().forEach(win => {
+                                win.webContents.send('refresh-data');
+                            });
+                            // 2. Mark as Applied & ACK
+                            if (event.eventId) {
+                                try {
+                                    const db = (0, index_cjs_1.getDB)();
+                                    db.prepare('INSERT INTO applied_events (event_id, event_type, applied_at, source) VALUES (?, ?, ?, ?)').run(event.eventId, event.eventType, Date.now(), 'websocket');
+                                    console.log(`[Telegram] Acknowledging event ${event.eventId}`);
+                                    telegramSocket.emit('event-ack', event.eventId);
+                                }
+                                catch (dbError) {
+                                    console.error('[Telegram] Failed to store applied_event:', dbError);
+                                    // Try to ack anyway to prevent endless loop of delivery if logic succeeded
+                                    telegramSocket.emit('event-ack', event.eventId);
+                                }
+                            }
+                            // 3. Sync Back to Bot (Update menu state etc)
+                            if (telegramStore && telegramStore.get('paired')) {
+                                (0, telegram_sync_cjs_1.syncUserDataToBackend)(telegramStore, telegramSocket).catch(err => console.error('[Telegram] Auto-sync failed:', err));
+                            }
                         }
+                    }
+                    catch (error) {
+                        console.error(`[Telegram] Failed to process ${event.eventType}:`, error);
                     }
                 });
                 // Check if paired on app start and connect
-                const paired = telegramStore.get('paired', false);
-                const sessionToken = telegramStore.get('sessionToken');
-                if (paired && sessionToken) {
-                    initTelegramWebSocket(sessionToken);
+                const isPaired = telegramStore.get('paired', false);
+                const storedSessionToken = telegramStore.get('sessionToken');
+                if (isPaired && storedSessionToken) {
+                    initTelegramWebSocket(storedSessionToken);
                 }
-            } // End initTelegramModules
+            }; // End initTelegramModules
             // Define IPC handlers INSIDE initTelegramModules scope so they can access telegramStore/Socket?
             // actually they are global ipcMain, but telegramStore is local to this function scope if defined inside?
             // Re-reading code: telegramStore was defined OUTSIDE as 'let telegramStore: any = null'.
             // So handlers below are fine.
-            // Initialization call
-            await initTelegramModules();
+            // Removed recursive call
         }
         catch (error) {
             console.error('[Telegram] Failed to initialize modules:', error);
         }
     }
     // Call the async init wrapper
-    initTelegramModulesWrapper();
+    initTelegramModules();
     // IPC Handlers for Telegram (Moved outside wrapper but check nulls)
     electron_1.ipcMain.handle('telegram:verify-pairing', async (_, code) => {
         if (!telegramStore)

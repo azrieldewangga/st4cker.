@@ -459,26 +459,43 @@ app.on('ready', async () => {
             // Initialize WebSocket connection
             initTelegramWebSocket = (token: string) => {
 
+                console.log(`[Telegram] Initializing WebSocket with token: ${token ? token.slice(0, 8) + '...' : 'NONE'}`);
+
                 if (telegramSocket?.connected) {
-                    console.log('[Telegram] Already connected');
+                    console.log('[Telegram] Socket is already connected (id=' + telegramSocket.id + ')');
+                    // Ensure listeners are attached even if re-using socket?
+                    // Ideally we shouldn't re-init.
                     return;
                 }
 
                 console.log(`[Telegram] Connecting to ${WEBSOCKET_URL}`);
 
-                telegramSocket = ioClient(WEBSOCKET_URL, {
-                    auth: { token: token },
-                    transports: ['websocket', 'polling'],
-                    reconnection: true,
-                    reconnectionDelay: 1000,
-                    reconnectionAttempts: 10
-                });
+                // Force WebSocket transport to avoid polling issues
+                try {
+                    telegramSocket = ioClient(WEBSOCKET_URL, {
+                        auth: { token: token },
+                        transports: ['websocket'], // Force websocket
+                        reconnection: true,
+                        reconnectionDelay: 1000,
+                        reconnectionAttempts: 20
+                    });
+                    console.log('[Telegram] Socket instance created');
+                } catch (err) {
+                    console.error('[Telegram] Failed to create socket instance:', err);
+                }
 
                 telegramSocket.on('connect', () => {
-                    console.log('[Telegram] WebSocket connected');
+                    console.log(`[Telegram] WebSocket connected (ID: ${telegramSocket.id})`);
                     BrowserWindow.getAllWindows().forEach((win: BrowserWindow) => {
                         win.webContents.send('telegram:status-change', 'connected');
                     });
+
+                    // Heartbeat Logger
+                    setInterval(() => {
+                        if (telegramSocket) {
+                            console.log(`[Telegram Heartbeat] Connected: ${telegramSocket.connected}, ID: ${telegramSocket.id}`);
+                        }
+                    }, 5000);
 
                     // Auto-sync whenever we connect/reconnect
                     console.log('[Telegram] Connected! Triggering auto-sync...');
@@ -498,7 +515,12 @@ app.on('ready', async () => {
                     console.error('[Telegram] Connection error:', error.message);
                 });
 
+                telegramSocket.onAny((event: any, ...args: any[]) => {
+                    console.log(`[Telegram Debug] Incoming Event: ${event}`, args);
+                });
+
                 telegramSocket.on('telegram-event', async (event: any) => {
+                    console.log('[Telegram Debug] Raw Event Payload:', JSON.stringify(event, null, 2));
                     console.log('[Telegram] Received event:', event.eventType, event.eventId);
 
                     // 1. Idempotency Check: Check applied_events table

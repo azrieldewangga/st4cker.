@@ -141,7 +141,9 @@ export const handleProjectCallback = async (bot, query, broadcastEvent) => {
             // Show Courses
             const userData = getUserData(userId);
             if (!userData || !userData.courses || userData.courses.length === 0) {
-                bot.sendMessage(chatId, '⚠️ No courses found. Sync desktop app first or choose Personal Project.');
+                // If no courses, suggest Personal Project instead of hard blocking?
+                // Or just warn.
+                bot.sendMessage(chatId, '⚠️ No courses found. Please sync your desktop app first.\n\nType /project again and select "Personal Project" if you want to proceed without a course.');
                 return;
             }
 
@@ -160,11 +162,14 @@ export const handleProjectCallback = async (bot, query, broadcastEvent) => {
             });
         } else {
             // Personal -> Skip to Priority
+            // Explicitly set null for course data
             updateSession(userId, {
                 state: 'AWAITING_PROJECT_PRIORITY',
-                data: { ...userSession.data, projectType: 'personal', courseId: null }
+                data: { ...userSession.data, projectType: 'personal', courseId: null, courseName: null }
             });
-            askPriority(bot, chatId);
+
+            // Fix: pass messageId for editMessageText
+            askPriority(bot, chatId, query.message.message_id);
         }
         return;
     }
@@ -187,7 +192,7 @@ export const handleProjectCallback = async (bot, query, broadcastEvent) => {
         });
 
         bot.answerCallbackQuery(query.id);
-        askPriority(bot, chatId);
+        askPriority(bot, chatId, query.message.message_id); // Pass messageId
         return;
     }
 
@@ -209,16 +214,27 @@ export const handleProjectCallback = async (bot, query, broadcastEvent) => {
     }
 };
 
-function askPriority(bot, chatId) {
-    bot.sendMessage(chatId, `⚡ Select **Priority**:`, {
+function askPriority(bot, chatId, messageId = null) {
+    const opts = {
         reply_markup: {
             inline_keyboard: [
                 [{ text: '🟢 Low', callback_data: 'K_PRIORITY_LOW' }],
                 [{ text: '🟡 Medium', callback_data: 'K_PRIORITY_MEDIUM' }],
                 [{ text: '🔴 High', callback_data: 'K_PRIORITY_HIGH' }],
             ]
-        }
-    });
+        },
+        parse_mode: 'Markdown'
+    };
+
+    if (messageId) {
+        bot.editMessageText(`⚡ Select **Priority**:`, {
+            chat_id: chatId,
+            message_id: messageId,
+            ...opts
+        });
+    } else {
+        bot.sendMessage(chatId, `⚡ Select **Priority**:`, opts);
+    }
 }
 
 export const handleProjectInput = async (bot, msg, broadcastEvent) => {
